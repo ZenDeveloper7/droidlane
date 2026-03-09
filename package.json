@@ -1,0 +1,38 @@
+{
+  "name": "droid-forge",
+  "version": "1.0.0",
+  "description": "A futuristic terminal-style Android project dashboard — file editor, build console, and git branch switcher in one local web app.",
+  "main": "server.js",
+  "type": "commonjs",
+  "bin": {
+    "droid-forge": "bin/launch.js"
+  },
+  "files": [
+    "bin/",
+    "public/",
+    "server.js"
+  ],
+  "scripts": {
+    "start": "node bin/launch.js"
+  },
+  "keywords": [
+    "android",
+    "gradle",
+    "dashboard",
+    "build",
+    "git",
+    "developer-tools"
+  ],
+  "author": "ZenDeveloper7",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8",
+    "express": "^4.18",
+    "monaco-editor": "^0.55.1",
+    "open": "^9.1",
+    "simple-git": "^3.27"
+  }
+}

@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DROID FORGE</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=JetBrains+Mono:wght@300;400;500&display=swap');
+  </style>
+
+  <!-- Monaco Editor — served locally -->
+  <script src="/monaco/vs/loader.js"></script>
+
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080A0F;
+      --surface:   #0D1117;
+      --border:    #1C2333;
+      --accent:    #00D4FF;
+      --text:      #E6EDF3;
+      --muted:     #4A5568;
+      --success:   #00FF88;
+      --error:     #FF4444;
+      --warning:   #FFB800;
+      --font-ui:   'DM Mono', monospace;
+      --font-code: 'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Layout Shell ─────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    #header {
+      height: 44px;
+      min-height: 44px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      position: relative;
+      z-index: 10;
+      opacity: 0;
+      animation: fadeIn 200ms ease-out 0ms forwards;
+    }
+
+    #logotype {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    #logotype .diamond { font-size: 17px; }
+
+    #header-center {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #branch-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      padding: 5px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 150ms ease-out, color 150ms ease-out;
+      letter-spacing: 0.05em;
+    }
+    #branch-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Branch dropdown with search ──────────────────────────────── */
+    #branch-dropdown {
+      position: absolute;
+      top: 44px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      min-width: 260px;
+      max-height: 320px;
+      display: none;
+      flex-direction: column;
+      z-index: 100;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    #branch-dropdown.open { display: flex; }
+
+    #branch-search-wrap {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #branch-search {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      padding: 5px 9px;
+      outline: none;
+      letter-spacing: 0.04em;
+      transition: border-color 150ms ease-out;
+    }
+    #branch-search::placeholder { color: var(--muted); }
+    #branch-search:focus { border-color: var(--accent); }
+
+    #branch-list {
+      overflow-y: auto;
+      flex: 1;
+    }
+    #branch-list::-webkit-scrollbar { width: 4px; }
+    #branch-list::-webkit-scrollbar-track { background: transparent; }
+    #branch-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .branch-item {
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--muted);
+      transition: background 100ms ease-out, color 100ms ease-out;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .branch-item:hover { background: var(--border); color: var(--text); }
+    .branch-item.active { color: var(--accent); }
+    .branch-item .match-highlight { color: var(--accent); }
+
+    #branch-no-results {
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      display: none;
+    }
+
+    #header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #unsaved-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--warning);
+      opacity: 0;
+      transition: opacity 150ms ease-out;
+    }
+    #unsaved-dot.visible { opacity: 1; }
+
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px;
+      transition: color 150ms ease-out;
+      font-family: var(--font-ui);
+    }
+    .icon-btn:hover { color: var(--accent); }
+
+    #clock {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* ── Scan-line separator ──────────────────────────────────────── */
+    .scan-line {
+      height: 1px;
+      background: var(--accent);
+      opacity: 0.4;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .scan-line::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -40%;
+      width: 40%; height: 100%;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 3s linear infinite;
+    }
+    @keyframes scan {
+      0%   { left: -40%; }
+      100% { left: 140%; }
+    }
+
+    /* ── Main area (panels + log strip) ──────────────────────────── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Panels row ───────────────────────────────────────────────── */
+    #panels {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── File Tree ────────────────────────────────────────────────── */
+    #panel-tree {
+      width: 240px;
+      min-width: 240px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      opacity: 0;
+      animation: fadeIn 200ms ease-out 150ms forwards;
+    }
+
+    .panel-header {
+      padding: 8px 14px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    #tree-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+    #tree-container::-webkit-scrollbar { width: 4px; }
+    #tree-container::-webkit-scrollbar-track { background: transparent; }
+    #tree-container::-webkit-scrollbar-thumb { background: var(--border); }
+    #tree-container::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* Tree nodes */
+    .tree-node {
+      display: flex;
+      align-items: center;
+      padding: 4px 0;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background 100ms ease-out, border-color 100ms ease-out;
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tree-node:hover { background: rgba(255,255,255,0.03); color: var(--text); }
+    .tree-node.active {
+      border-left-color: var(--accent);
+      background: rgba(0,212,255,0.06);
+      color: var(--text);
+      animation: borderPulse 2s ease-in-out infinite;
+    }
+    @keyframes borderPulse {
+      0%, 100% { border-left-color: var(--accent); }
+      50%       { border-left-color: rgba(0,212,255,0.3); }
+    }
+
+    .tree-icon   { width: 20px; text-align: center; flex-shrink: 0; font-size: 11px; }
+    .tree-toggle { width: 16px; text-align: center; flex-shrink: 0; font-size: 10px; color: var(--muted); }
+    .tree-name   { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Code Editor ──────────────────────────────────────────────── */
+    #panel-editor {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      opacity: 0;
+      animation: fadeIn 200ms ease-out 300ms forwards;
+    }
+
+    #editor-toolbar {
+      height: 38px;
+      min-height: 38px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    #editor-tab {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-bottom: 1px solid transparent;
+      letter-spacing: 0.04em;
+    }
+    #editor-tab.has-file { color: var(--text); border-bottom-color: var(--accent); }
+    #editor-tab .unsaved-mark { color: var(--warning); display: none; }
+    #editor-tab.unsaved .unsaved-mark { display: inline; }
+
+    #lang-badge {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      background: var(--border);
+      padding: 2px 7px;
+      text-transform: uppercase;
+    }
+
+    #toolbar-spacer { flex: 1; }
+
+    #save-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: border-color 150ms ease-out, color 150ms ease-out;
+      text-transform: uppercase;
+    }
+    #save-btn:hover { border-color: var(--accent); color: var(--accent); }
+    #save-btn.active { border-color: var(--accent); color: var(--accent); }
+
+    #editor-mount { flex: 1; overflow: hidden; }
+
+    #editor-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #editor-placeholder .hint { font-size: 12px; color: #2A3244; }
+
+    /* ── Build Console ────────────────────────────────────────────── */
+    #panel-build {
+      width: 300px;
+      min-width: 300px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      opacity: 0;
+      animation: fadeIn 200ms ease-out 450ms forwards;
+    }
+
+    #build-buttons {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .build-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 150ms ease-out, color 150ms ease-out;
+      text-transform: uppercase;
+      text-align: left;
+      width: 100%;
+    }
+    .build-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .build-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .build-btn.running {
+      border-color: var(--accent);
+      color: var(--accent);
+      animation: buildPulse 1s ease-in-out infinite;
+    }
+    @keyframes buildPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0); }
+      50%       { box-shadow: 0 0 0 4px rgba(0,212,255,0.12); }
+    }
+    .build-btn .btn-icon { font-size: 14px; }
+    .build-btn .btn-label { flex: 1; }
+    .build-btn .btn-sub { font-size: 10px; color: var(--muted); }
+
+    #cancel-btn {
+      background: transparent;
+      border: 1px solid var(--error);
+      color: var(--error);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      padding: 7px 14px;
+      cursor: pointer;
+      width: 100%;
+      display: none;
+      transition: background 150ms ease-out;
+      text-transform: uppercase;
+    }
+    #cancel-btn:hover { background: rgba(255,68,68,0.08); }
+    #cancel-btn.visible { display: block; }
+
+    #build-log-header {
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #build-log-header span {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    #clear-log-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      font-family: var(--font-ui);
+      padding: 2px 4px;
+      transition: color 150ms ease-out;
+      text-transform: uppercase;
+    }
+    #clear-log-btn:hover { color: var(--text); }
+
+    #build-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      font-family: var(--font-code);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    #build-log::-webkit-scrollbar { width: 4px; }
+    #build-log::-webkit-scrollbar-track { background: transparent; }
+    #build-log::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .log-line {
+      padding: 1px 14px;
+      overflow-wrap: break-word;
+      word-break: break-all;
+      animation: slideInLeft 150ms ease-out forwards;
+      opacity: 0;
+    }
+    @keyframes slideInLeft {
+      from { transform: translateX(-8px); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    .log-line.out   { color: var(--text); }
+    .log-line.err   { color: var(--error); }
+    .log-line.warn  { color: var(--warning); }
+    .log-line.task  { color: var(--accent); }
+    .log-line.muted { color: var(--muted); }
+
+    #build-result {
+      display: none;
+      padding: 12px;
+      text-align: center;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      font-weight: 500;
+      text-transform: uppercase;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #build-result.success { color: var(--success); display: block; }
+    #build-result.fail    { color: var(--error);   display: block; }
+
+    /* ── Server Log Strip ─────────────────────────────────────────── */
+    #log-strip {
+      height: 160px;
+      min-height: 160px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      animation: fadeIn 200ms ease-out 550ms forwards;
+      flex-shrink: 0;
+    }
+
+    #log-strip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #log-strip-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #log-strip-header span.label {
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    #log-strip-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 200ms ease-out;
+    }
+    #log-strip-status.live { background: var(--success); }
+
+    #clear-server-log-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      font-family: var(--font-ui);
+      padding: 2px 4px;
+      transition: color 150ms ease-out;
+      text-transform: uppercase;
+    }
+    #clear-server-log-btn:hover { color: var(--text); }
+
+    #server-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 0;
+      font-family: var(--font-code);
+      font-size: 11.5px;
+      line-height: 1.55;
+      display: flex;
+      flex-direction: column;
+    }
+    #server-log::-webkit-scrollbar { width: 4px; }
+    #server-log::-webkit-scrollbar-track { background: transparent; }
+    #server-log::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .slog-line {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 1px 16px;
+      animation: slideInLeft 120ms ease-out forwards;
+      opacity: 0;
+    }
+    .slog-ts   { color: var(--muted); flex-shrink: 0; font-size: 10.5px; }
+    .slog-level {
+      flex-shrink: 0;
+      font-size: 9.5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      min-width: 46px;
+      text-align: right;
+    }
+    .slog-level.info    { color: var(--accent); }
+    .slog-level.success { color: var(--success); }
+    .slog-level.warn    { color: var(--warning); }
+    .slog-level.error   { color: var(--error); }
+    .slog-msg  { color: var(--text); }
+    .slog-meta { color: var(--muted); font-size: 10.5px; }
+
+    /* ── Toast ────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      padding: 9px 16px;
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 200ms ease-out, transform 200ms ease-out;
+      pointer-events: none;
+      letter-spacing: 0.06em;
+      max-width: 300px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { border-color: var(--success); color: var(--success); }
+    #toast.error   { border-color: var(--error);   color: var(--error); }
+
+    /* ── Animations ───────────────────────────────────────────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <div id="header">
+      <div id="logotype">
+        <span class="diamond">◈</span>
+        DROID FORGE
+      </div>
+      <div id="header-center">
+        <button id="branch-btn">
+          <span id="branch-name">loading...</span>
+          <span>▾</span>
+        </button>
+        <div id="branch-dropdown">
+          <div id="branch-search-wrap">
+            <input id="branch-search" type="text" placeholder="search branch…" autocomplete="off" spellcheck="false" />
+          </div>
+          <div id="branch-list"></div>
+          <div id="branch-no-results">no matches</div>
+        </div>
+      </div>
+      <div id="header-right">
+        <div id="unsaved-dot" title="Unsaved changes"></div>
+        <button class="icon-btn" id="refresh-btn" title="Refresh tree">⟳</button>
+        <div id="clock">00:00</div>
+      </div>
+    </div>
+
+    <div class="scan-line"></div>
+
+    <!-- Main -->
+    <div id="main">
+      <!-- Panels row -->
+      <div id="panels">
+        <!-- File Tree -->
+        <div id="panel-tree">
+          <div class="panel-header">Explorer</div>
+          <div id="tree-container"></div>
+        </div>
+
+        <!-- Code Editor -->
+        <div id="panel-editor">
+          <div id="editor-toolbar">
+            <div id="editor-tab">
+              <span id="tab-filename">no file open</span>
+              <span class="unsaved-mark">●</span>
+            </div>
+            <span id="lang-badge"></span>
+            <div id="toolbar-spacer"></div>
+            <button id="save-btn">Save ⌃S</button>
+          </div>
+          <div id="editor-mount">
+            <div id="editor-placeholder">
+              <span>SELECT A FILE</span>
+              <span class="hint">← from the explorer</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Build Console -->
+        <div id="panel-build">
+          <div class="panel-header">Build Console</div>
+          <div id="build-buttons">
+            <button class="build-btn" id="btn-apk" data-task="assembleRelease">
+              <span class="btn-icon">▶</span>
+              <span class="btn-label">Build APK</span>
+              <span class="btn-sub">assembleRelease</span>
+            </button>
+            <button class="build-btn" id="btn-bundle" data-task="bundleRelease">
+              <span class="btn-icon">◉</span>
+              <span class="btn-label">Build Bundle</span>
+              <span class="btn-sub">bundleRelease</span>
+            </button>
+            <button id="cancel-btn">✕ Cancel Build</button>
+          </div>
+          <div id="build-log-header">
+            <span>Output</span>
+            <button id="clear-log-btn">Clear</button>
+          </div>
+          <div id="build-log"></div>
+          <div id="build-result"></div>
+        </div>
+      </div>
+
+      <!-- Server Log Strip -->
+      <div id="log-strip">
+        <div id="log-strip-header">
+          <div id="log-strip-header-left">
+            <div id="log-strip-status"></div>
+            <span class="label">Server Logs</span>
+          </div>
+          <button id="clear-server-log-btn">Clear</button>
+        </div>
+        <div id="server-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

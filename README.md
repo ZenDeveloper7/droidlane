@@ -8,24 +8,28 @@ A futuristic terminal-style dashboard for Android projects — file editor, Grad
 
 ## Install
 
+**Via npm** *(recommended)*
 ```bash
 npm install -g droid-forge
-```
-
-Then point it at any Android project:
-
-```bash
 droid-forge /path/to/your/android/project
 ```
 
-Opens `http://localhost:3131` automatically. No config needed.
-
----
-
-## Or run without installing
-
+**Without installing** *(npx, runs latest version every time)*
 ```bash
 npx droid-forge /path/to/your/android/project
+```
+
+**Directly from GitHub** *(no npm account needed)*
+```bash
+npm install -g github:ZenDeveloper7/droid-forge
+droid-forge /path/to/your/android/project
+```
+
+**From a release tarball** *(offline/air-gapped)*
+```bash
+# Download droid-forge-x.x.x.tgz from GitHub Releases, then:
+npm install -g ./droid-forge-1.0.0.tgz
+droid-forge /path/to/your/android/project
 ```
 
 ---
@@ -107,6 +111,22 @@ droid-forge/
 - An Android project with a `gradlew` wrapper (or `gradle` on PATH)
 - Git (optional — branch switcher gracefully degrades if not a repo)
 - Tailscale (optional — remote access feature only)
+
+---
+
+## Releases
+
+Latest release and all tarballs: [github.com/ZenDeveloper7/droid-forge/releases](https://github.com/ZenDeveloper7/droid-forge/releases)
+
+To publish a new version:
+
+```bash
+# bump version in package.json, then:
+npm pack
+git tag v1.x.x && git push origin v1.x.x
+gh release create v1.x.x droid-forge-1.x.x.tgz --title "v1.x.x" --generate-notes
+npm publish   # requires npm login
+```
 
 ---
 

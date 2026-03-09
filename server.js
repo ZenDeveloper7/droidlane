@@ -208,7 +208,7 @@ app.get('/api/file', (req, res) => {
     const abs     = safeResolve(relPath);
     const stat    = fs.statSync(abs);
     const content = fs.readFileSync(abs, 'utf8');
-    emitLog('info', `Opened ${relPath}`, { action: 'file:read' });
+    emitLog('cmd', `cat ${relPath}`, { action: 'file:read' });
     res.json({ content, path: relPath, modified: stat.mtimeMs });
   } catch (err) {
     res.status(404).json({ error: err.message });
@@ -259,20 +259,41 @@ app.get('/api/git/branches', async (req, res) => {
  * Body: { branch: string }
  * Response: { ok: true } or { error: string }
  */
-app.post('/api/git/checkout', async (req, res) => {
+app.post('/api/git/checkout', (req, res) => {
   const { branch } = req.body;
   if (!branch) return res.status(400).json({ error: 'branch required' });
 
-  try {
-    const git = simpleGit(PROJECT_ROOT);
-    emitLog('info', `Checking out ${branch}…`, { action: 'git:checkout' });
-    await git.checkout(branch);
-    emitLog('success', `Switched to ${branch}`, { action: 'git:checkout' });
-    res.json({ ok: true });
-  } catch (err) {
-    emitLog('error', `Checkout failed: ${err.message}`, { action: 'git:checkout' });
+  emitLog('cmd', `git checkout ${branch}`, { action: 'git:checkout' });
+
+  // Spawn git directly so we can stream progress lines to the log bus in real
+  // time. simple-git buffers all output until the process exits, which makes
+  // large checkouts feel frozen. --progress sends periodic status to stderr.
+  const proc = spawn('git', ['checkout', branch, '--progress'], {
+    cwd: PROJECT_ROOT,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+  });
+
+  const onLine = (line) => {
+    if (line.trim()) emitLog('info', line.trim(), { action: 'git:checkout' });
+  };
+
+  proc.stdout.on('data', (d) => d.toString().split('\n').forEach(onLine));
+  proc.stderr.on('data', (d) => d.toString().split('\n').forEach(onLine));
+
+  proc.on('close', (code) => {
+    if (code === 0) {
+      emitLog('success', `Switched to ${branch}`, { action: 'git:checkout' });
+      res.json({ ok: true });
+    } else {
+      emitLog('error', `Checkout failed (exit ${code})`, { action: 'git:checkout' });
+      res.status(500).json({ error: `git exited with code ${code}` });
+    }
+  });
+
+  proc.on('error', (err) => {
+    emitLog('error', `Checkout error: ${err.message}`, { action: 'git:checkout' });
     res.status(500).json({ error: err.message });
-  }
+  });
 });
 
 /**
@@ -307,7 +328,7 @@ app.get('/api/build', (req, res) => {
   const useGradlew = fs.existsSync(gradlew);
   const cmd        = useGradlew ? gradlew : 'gradle';
 
-  emitLog('info', `Build started: ${task}`, { action: 'build:start', task });
+  emitLog('cmd', `${useGradlew ? './gradlew' : 'gradle'} ${task}`, { action: 'build:start', task });
   send({ type: 'out', line: `$ ${useGradlew ? './gradlew' : 'gradle'} ${task}` });
 
   activeBuild = spawn(cmd, [task], {

@@ -521,10 +521,39 @@
     #build-result.success { color: var(--success); display: block; }
     #build-result.fail    { color: var(--error);   display: block; }
 
+    /* ── Log strip resize handle ──────────────────────────────────── */
+    #log-resize-handle {
+      height: 6px;
+      min-height: 6px;
+      cursor: ns-resize;
+      flex-shrink: 0;
+      background: transparent;
+      position: relative;
+      transition: background 150ms ease-out;
+      user-select: none;
+    }
+    #log-resize-handle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 48px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+      transition: background 150ms ease-out, width 150ms ease-out;
+    }
+    #log-resize-handle:hover::after,
+    #log-resize-handle.dragging::after {
+      background: var(--accent);
+      width: 64px;
+    }
+
     /* ── Server Log Strip ─────────────────────────────────────────── */
     #log-strip {
       height: 160px;
-      min-height: 160px;
+      min-height: 60px;
       background: var(--bg);
       border-top: 1px solid var(--border);
       display: flex;
@@ -611,6 +640,9 @@
     .slog-level.success { color: var(--success); }
     .slog-level.warn    { color: var(--warning); }
     .slog-level.error   { color: var(--error); }
+    .slog-level.cmd     { color: var(--muted); }
+    .slog-cmd           { color: var(--accent); font-style: normal; }
+    .slog-cmd::before   { content: '$ '; color: var(--muted); }
     .slog-msg  { color: var(--text); }
     .slog-meta { color: var(--muted); font-size: 10.5px; }
 
@@ -729,6 +761,7 @@
 
       <!-- Server Log Strip -->
       <div id="log-strip">
+        <div id="log-resize-handle" title="Drag to resize"></div>
         <div id="log-strip-header">
           <div id="log-strip-header-left">
             <div id="log-strip-status"></div>

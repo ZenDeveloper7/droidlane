@@ -133,6 +133,8 @@ const toast             = $('toast');
 const serverLog         = $('server-log');
 const logStripStatus    = $('log-strip-status');
 const clearServerLogBtn = $('clear-server-log-btn');
+const logStrip          = $('log-strip');
+const logResizeHandle   = $('log-resize-handle');
 
 // ── Clock ─────────────────────────────────────────────────────────────────────
 
@@ -632,13 +634,20 @@ function formatMeta(entry) {
  * @param {{ ts, level, msg, ...meta }} entry
  */
 function appendServerLog(entry) {
-  const el   = document.createElement('div');
+  const el = document.createElement('div');
   el.className = 'slog-line';
   const meta = formatMeta(entry);
+
+  // cmd entries get a distinct "$ command" treatment so they stand out as
+  // the actual shell/git/gradle commands being executed
+  const msgSpan = entry.level === 'cmd'
+    ? `<span class="slog-cmd">${escapeHtml(entry.msg)}</span>`
+    : `<span class="slog-msg">${escapeHtml(entry.msg)}</span>`;
+
   el.innerHTML =
     `<span class="slog-ts">${formatTs(entry.ts)}</span>` +
-    `<span class="slog-level ${entry.level}">${entry.level}</span>` +
-    `<span class="slog-msg">${escapeHtml(entry.msg)}</span>` +
+    `<span class="slog-level ${entry.level}">${entry.level === 'cmd' ? 'run' : entry.level}</span>` +
+    msgSpan +
     (meta ? `<span class="slog-meta">${escapeHtml(meta)}</span>` : '');
 
   serverLog.appendChild(el);
@@ -662,6 +671,43 @@ function connectLogStream() {
 }
 
 clearServerLogBtn.addEventListener('click', () => { serverLog.innerHTML = ''; });
+
+// ── Log strip resize ──────────────────────────────────────────────────────────
+// Drag the handle upward to expand, downward to shrink.
+// Height is clamped between 60px (collapsed) and 70% of the window.
+
+(function initLogResize() {
+  let startY = 0;
+  let startHeight = 0;
+
+  logResizeHandle.addEventListener('mousedown', (e) => {
+    startY      = e.clientY;
+    startHeight = logStrip.offsetHeight;
+    logResizeHandle.classList.add('dragging');
+    document.body.style.userSelect = 'none'; // prevent text selection while dragging
+    document.body.style.cursor = 'ns-resize';
+
+    function onMove(e) {
+      const delta     = startY - e.clientY;          // up = positive = taller
+      const maxHeight = Math.floor(window.innerHeight * 0.7);
+      const newHeight = Math.max(60, Math.min(maxHeight, startHeight + delta));
+      logStrip.style.height    = `${newHeight}px`;
+      logStrip.style.minHeight = `${newHeight}px`;
+      serverLog.scrollTop = serverLog.scrollHeight;   // keep scroll pinned
+    }
+
+    function onUp() {
+      logResizeHandle.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      document.body.style.cursor     = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+})();
 
 // ── Refresh button ────────────────────────────────────────────────────────────
 

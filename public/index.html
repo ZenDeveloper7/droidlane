@@ -455,6 +455,20 @@
       animation: fadeIn 200ms ease-out 450ms forwards;
     }
 
+    #jdk-badge {
+      padding: 5px 14px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #jdk-badge.ok   { color: var(--success); }
+    #jdk-badge.warn { color: var(--warning); }
+
     #build-buttons {
       padding: 12px;
       display: flex;
@@ -827,6 +841,7 @@
         <!-- Build Console -->
         <div id="panel-build">
           <div class="panel-header">Build Console</div>
+          <div id="jdk-badge">☕ detecting JDK…</div>
           <div id="build-buttons">
             <button class="build-btn" id="btn-apk" data-task="assembleRelease">
               <span class="btn-icon">▶</span>

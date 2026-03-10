@@ -852,6 +852,22 @@ async function boot() {
     }
   } catch {}
 
+  // Show which JDK will be used for builds
+  try {
+    const res = await fetch('/api/jdk');
+    if (res.ok) {
+      const { path: jdkPath, source } = await res.json();
+      const badge = $('jdk-badge');
+      if (source === 'android-studio') {
+        badge.textContent = `☕ ${jdkPath}`;
+        badge.classList.add('ok');
+      } else {
+        badge.textContent = '⚠ Android Studio JDK not found — using system Java';
+        badge.classList.add('warn');
+      }
+    }
+  } catch {}
+
   connectLogStream();
   await Promise.all([refreshTree(), loadBranches()]);
 

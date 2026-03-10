@@ -28,10 +28,65 @@ const simpleGit    = require('simple-git');
 
 const PROJECT_ROOT = process.env.ANDROID_PROJECT_ROOT;
 const PORT = 3131;
+const os = require('os');
 
 if (!PROJECT_ROOT) {
   console.error('ANDROID_PROJECT_ROOT not set. Use: droidlane /path/to/project');
   process.exit(1);
+}
+
+// ── Android Studio JDK detection ──────────────────────────────────────────────
+//
+// Android Studio ships a bundled JBR (JetBrains Runtime). Using it instead of
+// the system Java avoids version-mismatch errors like:
+//   "Unsupported class file major version 69" (Java 25 on PATH, AGP needs ≤21)
+//
+// Search order:
+//   1. ANDROID_STUDIO_JDK env var (explicit user override)
+//   2. Common Android Studio install paths per platform
+//   3. null  →  fall back to whatever java is on PATH
+
+function findAndroidStudioJdk() {
+  if (process.env.ANDROID_STUDIO_JDK) {
+    const override = process.env.ANDROID_STUDIO_JDK;
+    const bin = path.join(override, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+    if (fs.existsSync(bin)) return override;
+    console.warn(`[droidlane] ANDROID_STUDIO_JDK set but java not found at: ${bin}`);
+  }
+
+  const home = os.homedir();
+  const candidates = {
+    linux: [
+      '/opt/android-studio/jbr',
+      '/usr/local/android-studio/jbr',
+      `${home}/android-studio/jbr`,
+      `${home}/.local/share/JetBrains/Toolbox/apps/AndroidStudio/ch-0/current/jbr`,
+      '/snap/android-studio/current/android-studio/jbr',
+    ],
+    darwin: [
+      '/Applications/Android Studio.app/Contents/jbr/Contents/Home',
+      '/Applications/Android Studio.app/Contents/jre/Contents/Home',
+      '/Applications/Android Studio.app/Contents/jre/jdk/Contents/Home',
+    ],
+    win32: [
+      'C:\\Program Files\\Android Studio\\jbr',
+      `${home}\\AppData\\Local\\Programs\\Android Studio\\jbr`,
+    ],
+  }[process.platform] || [];
+
+  for (const candidate of candidates) {
+    const bin = path.join(candidate, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+    if (fs.existsSync(bin)) return candidate;
+  }
+  return null;
+}
+
+const ANDROID_STUDIO_JDK = findAndroidStudioJdk();
+if (ANDROID_STUDIO_JDK) {
+  console.log(`  ☕ JDK  : ${ANDROID_STUDIO_JDK}`);
+} else {
+  console.warn('  ⚠ JDK  : Android Studio JDK not found — using system Java');
+  console.warn('           Set ANDROID_STUDIO_JDK=/path/to/jbr to override');
 }
 
 const app = express();
@@ -346,10 +401,21 @@ app.get('/api/build', (req, res) => {
   emitLog('cmd', `${useGradlew ? './gradlew' : 'gradle'} ${task}`, { action: 'build:start', task });
   send({ type: 'out', line: `$ ${useGradlew ? './gradlew' : 'gradle'} ${task}` });
 
-  activeBuild = spawn(cmd, [task], {
-    cwd: PROJECT_ROOT,
-    env: { ...process.env, TERM: 'dumb', GRADLE_OPTS: '-Dorg.gradle.console=plain' },
-  });
+  if (ANDROID_STUDIO_JDK) {
+    send({ type: 'out', line: `  ☕ JDK: ${ANDROID_STUDIO_JDK}` });
+  } else {
+    send({ type: 'warn', line: '  ⚠ Android Studio JDK not found — using system Java (may fail)' });
+    send({ type: 'warn', line: '    Set ANDROID_STUDIO_JDK=/path/to/jbr to fix' });
+  }
+
+  const buildEnv = {
+    ...process.env,
+    TERM: 'dumb',
+    GRADLE_OPTS: '-Dorg.gradle.console=plain',
+    ...(ANDROID_STUDIO_JDK ? { JAVA_HOME: ANDROID_STUDIO_JDK } : {}),
+  };
+
+  activeBuild = spawn(cmd, [task], { cwd: PROJECT_ROOT, env: buildEnv });
 
   const streamLines = (type) => (data) => {
     for (const line of data.toString().split('\n')) {
@@ -428,6 +494,18 @@ app.get('/api/logs/stream', (req, res) => {
  */
 app.get('/api/project', (req, res) => {
   res.json({ name: path.basename(PROJECT_ROOT), root: PROJECT_ROOT });
+});
+
+/**
+ * GET /api/jdk
+ * Returns the JDK that will be used for Gradle builds.
+ * Response: { path: string | null, source: 'android-studio' | 'system' }
+ */
+app.get('/api/jdk', (req, res) => {
+  res.json({
+    path: ANDROID_STUDIO_JDK,
+    source: ANDROID_STUDIO_JDK ? 'android-studio' : 'system',
+  });
 });
 
 /**

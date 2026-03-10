@@ -10,7 +10,9 @@
   "files": [
     "bin/",
     "public/",
-    "server.js"
+    "server.js",
+    "lib/",
+    "routes/"
   ],
   "scripts": {
     "start": "node bin/launch.js"

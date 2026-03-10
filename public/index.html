@@ -50,7 +50,6 @@
 
     /* ── Header ───────────────────────────────────────────────────── */
     #header {
-      height: 44px;
       min-height: 44px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
@@ -261,6 +260,11 @@
       text-transform: uppercase;
       flex-shrink: 0;
     }
+    .panel-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
     #file-search-wrap {
       padding: 6px 10px;
@@ -361,7 +365,6 @@
     }
 
     #editor-toolbar {
-      height: 38px;
       min-height: 38px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
@@ -560,7 +563,8 @@
       text-transform: uppercase;
     }
     #build-log-header-actions { display: flex; gap: 8px; align-items: center; }
-    #clear-log-btn, #copy-errors-btn {
+    /* Shared style for small text-action buttons in log headers */
+    .log-action-btn {
       background: transparent;
       border: none;
       color: var(--muted);
@@ -572,8 +576,8 @@
       transition: color 150ms ease-out;
       text-transform: uppercase;
     }
-    #clear-log-btn:hover { color: var(--text); }
-    #copy-errors-btn:hover { color: var(--error); }
+    #clear-log-btn:hover    { color: var(--text); }
+    #copy-errors-btn:hover  { color: var(--error); }
 
     /* Copy icon on individual log lines */
     .log-line { position: relative; }
@@ -729,18 +733,6 @@
     }
     #log-strip-status.live { background: var(--success); }
 
-    #clear-server-log-btn {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      font-size: 10px;
-      cursor: pointer;
-      letter-spacing: 0.08em;
-      font-family: var(--font-ui);
-      padding: 2px 4px;
-      transition: color 150ms ease-out;
-      text-transform: uppercase;
-    }
     #clear-server-log-btn:hover { color: var(--text); }
 
     #server-log {
@@ -822,21 +814,21 @@
         DROIDLANE
       </div>
       <div id="header-center">
-        <button id="branch-btn">
+        <button id="branch-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Switch git branch">
           <span id="branch-name">loading...</span>
-          <span>▾</span>
+          <span aria-hidden="true">▾</span>
         </button>
-        <div id="branch-dropdown">
+        <div id="branch-dropdown" role="listbox" aria-label="Git branches">
           <div id="branch-search-wrap">
-            <input id="branch-search" type="text" placeholder="search branch…" autocomplete="off" spellcheck="false" />
+            <input id="branch-search" type="text" placeholder="search branch…" autocomplete="off" spellcheck="false" aria-label="Search branches" aria-autocomplete="list" aria-controls="branch-list" />
           </div>
-          <div id="branch-list"></div>
-          <div id="branch-no-results">no matches</div>
+          <div id="branch-list" role="group"></div>
+          <div id="branch-no-results" aria-live="polite">no matches</div>
         </div>
       </div>
       <div id="header-right">
-        <div id="unsaved-dot" title="Unsaved changes"></div>
-        <button class="icon-btn" id="refresh-btn" title="Refresh tree">⟳</button>
+        <div id="unsaved-dot" title="Unsaved changes" role="status" aria-label="Unsaved changes" aria-live="polite"></div>
+        <button class="icon-btn" id="refresh-btn" title="Refresh tree" aria-label="Refresh file tree and branches">⟳</button>
         <div id="clock">00:00</div>
       </div>
     </div>
@@ -851,7 +843,7 @@
         <div id="panel-tree">
           <div class="panel-header">Explorer</div>
           <div id="file-search-wrap">
-            <input id="file-search" type="text" placeholder="search files…" autocomplete="off" spellcheck="false" />
+            <input id="file-search" type="text" placeholder="search files…" autocomplete="off" spellcheck="false" aria-label="Search files" />
           </div>
           <div id="tree-container"></div>
         </div>
@@ -865,8 +857,8 @@
             </div>
             <span id="lang-badge"></span>
             <div id="toolbar-spacer"></div>
-            <button id="add-to-build-btn">+ Add to Build List</button>
-            <button id="save-btn">Save ⌃S</button>
+            <button id="add-to-build-btn" aria-label="Apply this flavour file to release.gradle">+ Add to Build List</button>
+            <button id="save-btn" aria-label="Save current file (Ctrl+S)">Save ⌃S</button>
           </div>
           <div id="editor-mount">
             <div id="editor-placeholder">
@@ -878,9 +870,9 @@
 
         <!-- Build Console -->
         <div id="panel-build">
-          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="panel-header panel-header-row">
             <span>Build Console</span>
-            <button id="build-expand-btn" title="Expand panel">⟺</button>
+            <button id="build-expand-btn" title="Expand panel" aria-label="Expand build panel" aria-pressed="false">⟺</button>
           </div>
           <div id="jdk-badge">☕ detecting JDK…</div>
           <div id="build-buttons">
@@ -899,13 +891,13 @@
               <span class="btn-label">Build Both</span>
               <span class="btn-sub">bundle → assemble</span>
             </button>
-            <button id="cancel-btn">✕ Cancel Build</button>
+            <button id="cancel-btn" aria-label="Cancel the running build">✕ Cancel Build</button>
           </div>
           <div id="build-log-header">
             <span>Output</span>
             <div id="build-log-header-actions">
-              <button id="copy-errors-btn" title="Copy all error lines">Copy Errors</button>
-              <button id="clear-log-btn">Clear</button>
+              <button id="copy-errors-btn" class="log-action-btn" title="Copy all error lines" aria-label="Copy all error lines to clipboard">Copy Errors</button>
+              <button id="clear-log-btn" class="log-action-btn" aria-label="Clear build log">Clear</button>
             </div>
           </div>
           <div id="build-log"></div>
@@ -918,10 +910,10 @@
         <div id="log-resize-handle" title="Drag to resize"></div>
         <div id="log-strip-header">
           <div id="log-strip-header-left">
-            <div id="log-strip-status"></div>
+            <div id="log-strip-status" role="status" aria-label="Log stream connection status"></div>
             <span class="label">Server Logs</span>
           </div>
-          <button id="clear-server-log-btn">Clear</button>
+          <button id="clear-server-log-btn" class="log-action-btn" aria-label="Clear server log">Clear</button>
         </div>
         <div id="server-log"></div>
       </div>

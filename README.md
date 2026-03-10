@@ -28,7 +28,7 @@ droidlane /path/to/your/android/project
 **From a release tarball** *(offline/air-gapped)*
 ```bash
 # Download droidlane-x.x.x.tgz from GitHub Releases, then:
-npm install -g ./droidlane-1.0.0.tgz
+npm install -g ./droidlane-x.x.x.tgz
 droidlane /path/to/your/android/project
 ```
 
@@ -36,15 +36,21 @@ droidlane /path/to/your/android/project
 
 ## Features
 
-| Panel | What it does |
+| Panel / Feature | What it does |
 |---|---|
-| **Explorer** | File tree with collapsible dirs, file search, active-file highlight |
+| **Explorer** | File tree with collapsible dirs, file search (filters by name and path), active-file highlight |
 | **Editor** | Monaco Editor (same engine as VS Code) with a custom dark theme, Ctrl+S save, unsaved indicator |
-| **Build Console** | One-click `assembleRelease` / `bundleRelease`, live Gradle output streamed line-by-line, cancel button, copy errors |
-| **Server Logs** | Real-time strip at the bottom — every API call, file save, git op, and build event |
+| **Build Console** | One-click `assembleRelease`, `bundleRelease`, or **Build Both**; live Gradle output streamed line-by-line; cancel button; copy errors |
+| **Build Both** | Chains `bundleRelease` → `assembleRelease` in sequence using a single button click |
+| **Expand panel** | The ⟺ button in the Build Console header widens the panel to 600 px for easier reading of long output lines |
+| **Copy errors** | "Copy Errors" button collects all red error lines from the current build log and copies them to the clipboard |
+| **Output files** | After a successful build, `.aab` and `.apk` artefacts are automatically copied to `droidlane-output/` in the project root and listed below the success banner |
+| **Server Logs** | Real-time strip at the bottom — every API call, file save, git op, and build event; drag the resize handle to adjust height |
 | **Branch Switcher** | Searchable dropdown in the header, type-to-filter across all local + remote branches |
+| **Flavour Build** | Open any `.gradle` file inside a `flavours/` directory → "Add to Build List" updates `app/release.gradle` with the selected flavour in one click |
+| **Default file / pin** | Hover any file in the explorer and click ⊙ to pin it as the file that opens automatically on startup; preference is saved to `.droidlane-config.json` |
+| **JDK detection** | Automatically finds and uses the JDK bundled with Android Studio; shown as a badge in the Build Console |
 | **Tailscale / LAN** | Binds to `0.0.0.0`, prints your Tailnet URL on start so you can open it from any device |
-| **Flavour Build** | Open any file in `flavours/` → "Add to Build List" updates `release.gradle` in one click |
 
 ---
 
@@ -64,7 +70,6 @@ On launch you'll see:
   Project : /home/you/projects/MyApp
   Local   : http://localhost:3131
   Tailnet : http://100.x.x.x:3131
-  ☕ JDK  : /opt/android-studio/jbr
 ```
 
 ---
@@ -79,7 +84,7 @@ Unsupported class file major version 69
 
 which occurs when the system Java is newer than what the Android Gradle Plugin supports.
 
-**How it works:** At startup droidlane searches the standard Android Studio install paths for the bundled JBR and sets `JAVA_HOME` before spawning Gradle. The detected JDK is shown in the terminal output and in the Build Console panel.
+**How it works:** At startup droidlane searches the standard Android Studio install paths for the bundled JBR and sets `JAVA_HOME` before spawning Gradle. The detected JDK path is shown in the Build Console panel's JDK badge.
 
 **If the JDK is not detected automatically**, set it manually:
 
@@ -110,6 +115,8 @@ droidlane /path/to/project
 # Add a folder to .droidlane-ignore (hide from file explorer)
 droidlane ignore <folder-name> [project-path]
 ```
+
+The `ignore` sub-command appends the entry to `.droidlane-ignore` in the given project directory (defaults to the current working directory if `project-path` is omitted). It is a no-op if the entry already exists.
 
 ---
 
@@ -155,22 +162,34 @@ The preference is saved to `.droidlane-config.json` in the project root.
 
 ---
 
+## Output files
+
+After every successful build, droidlane collects all `.aab` and `.apk` files produced under `app/build/outputs/` and copies them to a `droidlane-output/` directory in the project root. The directory is created automatically if it does not exist. The copied filenames are listed in the Build Console below the success banner.
+
+---
+
+## Build Both
+
+The **Build Both** button in the Build Console runs `bundleRelease` first, then automatically chains `assembleRelease` once the bundle succeeds. Both tasks share the same output log. If either task fails the chain stops. Cancelling during the first task also cancels the pending second task.
+
+---
+
 ## Architecture
 
 ```
 droidlane/
 ├── bin/
-│   └── launch.js      # CLI entry point — validates path, detects Tailscale IP, opens browser
+│   └── launch.js      # CLI entry point — validates path, starts server, detects Tailscale IP, opens browser
 ├── public/
 │   ├── index.html     # Shell layout, all CSS, font imports
 │   └── app.js         # Vanilla JS frontend — no framework, no bundler
-├── server.js          # Express backend — file I/O, git, Gradle SSE, log bus, JDK detection
+├── server.js          # Express backend — file I/O, git, Gradle SSE, JDK detection, log bus
 └── package.json
 ```
 
-**Backend** — Express on port 3131, bound to `0.0.0.0`.
+**Backend** — Express on port 3131, bound to `0.0.0.0`. Handles file read/write, git branch listing and checkout, Gradle build streaming over SSE, JDK detection, and post-build artefact copying.
 **Frontend** — Pure ES modules in the browser. Monaco Editor served locally (no CDN, instant load).
-**Build output** — Streamed over Server-Sent Events so you see output as Gradle produces it.
+**Build output** — Streamed over Server-Sent Events so you see output as Gradle produces it. On success, `.aab`/`.apk` files are copied to `droidlane-output/`.
 **Server logs** — An in-process event bus fans structured log entries to the bottom strip via SSE.
 
 ---

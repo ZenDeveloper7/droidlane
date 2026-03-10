@@ -262,6 +262,26 @@
       flex-shrink: 0;
     }
 
+    #file-search-wrap {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #file-search {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      padding: 4px 8px;
+      outline: none;
+      letter-spacing: 0.04em;
+      transition: border-color 150ms ease-out;
+    }
+    #file-search::placeholder { color: var(--muted); }
+    #file-search:focus { border-color: var(--accent); }
+
     #tree-container {
       flex: 1;
       overflow-y: auto;
@@ -271,6 +291,34 @@
     #tree-container::-webkit-scrollbar-track { background: transparent; }
     #tree-container::-webkit-scrollbar-thumb { background: var(--border); }
     #tree-container::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    .tree-path-hint {
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Pin button — appears on tree-node hover */
+    .pin-btn {
+      margin-left: auto;
+      margin-right: 8px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 0 3px;
+      opacity: 0;
+      transition: opacity 100ms ease-out, color 100ms ease-out;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .tree-node:hover .pin-btn { opacity: 1; }
+    .pin-btn:hover { color: var(--accent); }
+    .pin-btn.pinned { opacity: 1; color: var(--accent); }
 
     /* Tree nodes */
     .tree-node {
@@ -348,6 +396,21 @@
     }
 
     #toolbar-spacer { flex: 1; }
+
+    #add-to-build-btn {
+      background: transparent;
+      border: 1px solid var(--success);
+      color: var(--success);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background 150ms ease-out;
+      text-transform: uppercase;
+      display: none;
+    }
+    #add-to-build-btn:hover { background: rgba(0,255,136,0.08); }
 
     #save-btn {
       background: transparent;
@@ -712,6 +775,9 @@
         <!-- File Tree -->
         <div id="panel-tree">
           <div class="panel-header">Explorer</div>
+          <div id="file-search-wrap">
+            <input id="file-search" type="text" placeholder="search files…" autocomplete="off" spellcheck="false" />
+          </div>
           <div id="tree-container"></div>
         </div>
 
@@ -724,12 +790,13 @@
             </div>
             <span id="lang-badge"></span>
             <div id="toolbar-spacer"></div>
+            <button id="add-to-build-btn">+ Add to Build List</button>
             <button id="save-btn">Save ⌃S</button>
           </div>
           <div id="editor-mount">
             <div id="editor-placeholder">
               <span>SELECT A FILE</span>
-              <span class="hint">← from the explorer</span>
+              <span class="hint">← from the explorer, or pin one with ⊙ to open on startup</span>
             </div>
           </div>
         </div>

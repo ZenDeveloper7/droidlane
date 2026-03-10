@@ -20,6 +20,7 @@
 
 const state = {
   currentFile: null,       // relative path of the file open in the editor
+  pinnedFile: null,        // file set as default (auto-open on startup)
   isUnsaved: false,        // true when editor content differs from disk
   isBuildRunning: false,   // true while a Gradle build SSE stream is active
   currentBranch: null,     // name of the checked-out git branch
@@ -118,10 +119,12 @@ const branchSearch      = $('branch-search');
 const branchList        = $('branch-list');
 const branchNoResults   = $('branch-no-results');
 const treeContainer     = $('tree-container');
+const fileSearch        = $('file-search');
 const editorTab         = $('editor-tab');
 const tabFilename       = $('tab-filename');
 const langBadge         = $('lang-badge');
 const saveBtn           = $('save-btn');
+const addToBuildBtn     = $('add-to-build-btn');
 const unsavedDot        = $('unsaved-dot');
 const buildLog          = $('build-log');
 const buildResult       = $('build-result');
@@ -244,6 +247,10 @@ async function loadFileIntoEditor(relPath) {
     langBadge.textContent = lang;
     setUnsaved(false);
 
+    // Show "Add to Build List" only for files inside a flavours/ directory
+    const isFlavour = relPath.includes('/flavours/') && relPath.endsWith('.gradle');
+    addToBuildBtn.style.display = isFlavour ? '' : 'none';
+
     // Sync the active highlight in the file tree
     document.querySelectorAll('.tree-node').forEach(n => {
       n.classList.toggle('active', n.dataset.path === relPath);
@@ -275,6 +282,23 @@ async function saveCurrentFile() {
 }
 
 saveBtn.addEventListener('click', saveCurrentFile);
+
+addToBuildBtn.addEventListener('click', async () => {
+  const flavour = state.currentFile.split('/').pop().replace('.gradle', '');
+  try {
+    const res = await fetch('/api/flavour/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flavour }),
+    });
+    if (!res.ok) { showToast('Failed to update release.gradle', 'error'); return; }
+    showToast(`${flavour} → release.gradle`, 'success');
+    // Open release.gradle so the user sees the change
+    await loadFileIntoEditor('app/release.gradle');
+  } catch {
+    showToast('Error applying flavour', 'error');
+  }
+});
 
 // Ctrl+S / Cmd+S global shortcut
 document.addEventListener('keydown', (e) => {
@@ -326,6 +350,25 @@ function renderTree(nodes, depth = 0) {
         + `<span class="tree-icon" style="color:var(--muted);font-size:10px">${fileIcon(node.name)}</span>`
         + `<span class="tree-name">${node.name}</span>`;
 
+      // Pin button — sets this file as the default on startup
+      const pinBtn = document.createElement('button');
+      pinBtn.className = 'pin-btn';
+      pinBtn.title = 'Set as default file (auto-open on startup)';
+      pinBtn.textContent = '⊙';
+      if (node.path === state.pinnedFile) pinBtn.classList.add('pinned');
+      pinBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await fetch('/api/default-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: node.path }),
+        });
+        state.pinnedFile = node.path;
+        showToast(`Pinned: ${node.name}`, 'success');
+        renderTreeInto(treeCache); // refresh to update pin highlights
+      });
+      el.appendChild(pinBtn);
+
       el.addEventListener('click', () => {
         if (state.isUnsaved && !confirm('Discard unsaved changes?')) return;
         loadFileIntoEditor(node.path);
@@ -357,6 +400,55 @@ function renderTreeInto(tree) {
   treeContainer.innerHTML = '';
   treeContainer.appendChild(renderTree(tree, 0));
 }
+
+/** Flatten a nested tree to a list of file nodes */
+function flattenTree(nodes, result = []) {
+  for (const node of nodes) {
+    if (node.type === 'file') result.push(node);
+    else if (node.children) flattenTree(node.children, result);
+  }
+  return result;
+}
+
+/** Render a flat filtered list of files matching the search query */
+function renderSearchResults(query) {
+  const q = query.trim().toLowerCase();
+  treeContainer.innerHTML = '';
+  if (!q) { renderTreeInto(treeCache); return; }
+
+  const matches = flattenTree(treeCache).filter(f =>
+    f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)
+  );
+
+  if (!matches.length) {
+    treeContainer.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12px">no matches</div>';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const file of matches) {
+    const el = document.createElement('div');
+    el.className = 'tree-node';
+    el.dataset.path = file.path;
+    el.style.paddingLeft = '8px';
+    if (state.currentFile === file.path) el.classList.add('active');
+
+    const dir = file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : '';
+    el.innerHTML = `<span class="tree-toggle"></span>`
+      + `<span class="tree-icon" style="color:var(--muted);font-size:10px">${fileIcon(file.name)}</span>`
+      + `<span class="tree-name">${escapeHtml(file.name)}</span>`
+      + (dir ? `<span class="tree-path-hint">${escapeHtml(dir)}</span>` : '');
+
+    el.addEventListener('click', () => {
+      if (state.isUnsaved && !confirm('Discard unsaved changes?')) return;
+      loadFileIntoEditor(file.path);
+    });
+    frag.appendChild(el);
+  }
+  treeContainer.appendChild(frag);
+}
+
+fileSearch.addEventListener('input', () => renderSearchResults(fileSearch.value));
 
 // ── Git Branches ──────────────────────────────────────────────────────────────
 
@@ -740,6 +832,18 @@ async function boot() {
 
   connectLogStream();
   await Promise.all([refreshTree(), loadBranches()]);
+
+  // Auto-open the default file (release.gradle if present, or user-pinned file)
+  try {
+    const res = await fetch('/api/default-file');
+    if (res.ok) {
+      const { path: defaultPath } = await res.json();
+      if (defaultPath) {
+        state.pinnedFile = defaultPath;
+        loadFileIntoEditor(defaultPath);
+      }
+    }
+  } catch {}
 }
 
 boot();

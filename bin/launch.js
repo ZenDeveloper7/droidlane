@@ -21,9 +21,36 @@ const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
+// ── Sub-commands ──────────────────────────────────────────────────────────────
+
+const args = process.argv.slice(2);
+
+// droidlane ignore <folder-name> [project-path]
+// Appends a folder name to .droidlane-ignore in the given project (default: cwd)
+if (args[0] === 'ignore') {
+  const name       = args[1];
+  const projectDir = args[2] ? path.resolve(args[2]) : process.cwd();
+  if (!name) {
+    console.error('\n  Usage: droidlane ignore <folder-name> [project-path]\n');
+    process.exit(1);
+  }
+  const ignorePath = path.join(projectDir, '.droidlane-ignore');
+  let existing = '';
+  try { existing = fs.readFileSync(ignorePath, 'utf8'); } catch {}
+  const already = existing.split('\n').some(l => l.trim() === name);
+  if (already) {
+    console.log(`  "${name}" is already in ${ignorePath}`);
+    process.exit(0);
+  }
+  const prefix = existing && !existing.endsWith('\n') ? '\n' : '';
+  fs.appendFileSync(ignorePath, `${prefix}${name}\n`);
+  console.log(`  Added "${name}" to ${ignorePath}`);
+  process.exit(0);
+}
+
 // ── Argument validation ───────────────────────────────────────────────────────
 
-const projectRoot = process.argv[2];
+const projectRoot = args[0];
 
 if (!projectRoot) {
   console.error('\n  Usage: droidlane /path/to/android/project\n');

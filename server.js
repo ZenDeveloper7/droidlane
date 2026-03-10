@@ -430,6 +430,88 @@ app.get('/api/project', (req, res) => {
   res.json({ name: path.basename(PROJECT_ROOT), root: PROJECT_ROOT });
 });
 
+/**
+ * GET /api/default-file
+ * Returns the file to auto-open on dashboard startup.
+ * Priority: .droidlane-config.json → first release.gradle found.
+ * Response: { path: string | null }
+ */
+app.get('/api/default-file', (req, res) => {
+  // 1. Persisted preference
+  const configPath = path.join(PROJECT_ROOT, '.droidlane-config.json');
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (config.defaultFile) {
+      try { safeResolve(config.defaultFile); return res.json({ path: config.defaultFile }); } catch {}
+    }
+  } catch {}
+
+  // 2. Search for release.gradle
+  function findFile(dir, filename, relBase) {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return null; }
+    for (const entry of entries) {
+      const rel = relBase ? `${relBase}/${entry.name}` : entry.name;
+      if (entry.isFile() && entry.name === filename) return rel;
+      if (entry.isDirectory() && !EXCLUDED_NAMES.has(entry.name)) {
+        const found = findFile(path.join(dir, entry.name), filename, rel);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  const releasePath = findFile(PROJECT_ROOT, 'release.gradle', '');
+  res.json({ path: releasePath || null });
+});
+
+/**
+ * POST /api/default-file
+ * Saves the default file preference to .droidlane-config.json.
+ * Body: { path: string }
+ */
+app.post('/api/default-file', (req, res) => {
+  const { path: filePath } = req.body;
+  if (!filePath) return res.status(400).json({ error: 'path required' });
+  try { safeResolve(filePath); } catch (err) { return res.status(400).json({ error: err.message }); }
+
+  const configPath = path.join(PROJECT_ROOT, '.droidlane-config.json');
+  let config = {};
+  try { config = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
+  config.defaultFile = filePath;
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  emitLog('info', `Default file set: ${filePath}`, { action: 'config:default-file' });
+  res.json({ ok: true });
+});
+
+/**
+ * POST /api/flavour/apply
+ * Updates app/release.gradle to use the specified product flavour.
+ * Replaces both the `apply from:` import and the `productFlavors` signing line.
+ * Body: { flavour: string }
+ */
+app.post('/api/flavour/apply', (req, res) => {
+  const { flavour } = req.body;
+  if (!flavour || !/^\w+$/.test(flavour)) return res.status(400).json({ error: 'invalid flavour name' });
+
+  const releasePath = path.join(PROJECT_ROOT, 'app', 'release.gradle');
+  if (!fs.existsSync(releasePath)) return res.status(404).json({ error: 'app/release.gradle not found' });
+
+  let content = fs.readFileSync(releasePath, 'utf8');
+  content = content.replace(
+    /apply from:\s*['"]\.\/flavours\/\w+\.gradle['"]/,
+    `apply from: './flavours/${flavour}.gradle'`
+  );
+  content = content.replace(
+    /productFlavors\.\w+\.signingConfig\s+signingConfigs\.\w+/,
+    `productFlavors.${flavour}.signingConfig signingConfigs.${flavour}`
+  );
+
+  fs.writeFileSync(releasePath, content, 'utf8');
+  emitLog('info', `Flavour applied: ${flavour}`, { action: 'flavour:apply', flavour });
+  res.json({ ok: true, flavour });
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 // Bind to 0.0.0.0 so the dashboard is reachable over Tailscale / LAN,
 // not just from localhost.

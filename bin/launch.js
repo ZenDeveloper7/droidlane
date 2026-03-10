@@ -25,26 +25,44 @@ const { execSync } = require('child_process');
 
 const args = process.argv.slice(2);
 
-// droidlane ignore <folder-name> [project-path]
-// Appends a folder name to .droidlane-ignore in the given project (default: cwd)
+// droidlane ignore <name1> [name2 ...] [--project /path]
+// Appends one or more names to .droidlane-ignore in the given project (default: cwd)
 if (args[0] === 'ignore') {
-  const name       = args[1];
-  const projectDir = args[2] ? path.resolve(args[2]) : process.cwd();
-  if (!name) {
-    console.error('\n  Usage: droidlane ignore <folder-name> [project-path]\n');
+  const rest = args.slice(1);
+  const projFlagIdx = rest.indexOf('--project');
+  let projectDir;
+  let names;
+  if (projFlagIdx !== -1) {
+    projectDir = path.resolve(rest[projFlagIdx + 1] || process.cwd());
+    names = rest.filter((_, i) => i !== projFlagIdx && i !== projFlagIdx + 1);
+  } else {
+    projectDir = process.cwd();
+    names = rest;
+  }
+  if (!names.length) {
+    console.error('\n  Usage: droidlane ignore <name1> [name2 ...] [--project /path]\n');
     process.exit(1);
   }
   const ignorePath = path.join(projectDir, '.droidlane-ignore');
   let existing = '';
   try { existing = fs.readFileSync(ignorePath, 'utf8'); } catch {}
-  const already = existing.split('\n').some(l => l.trim() === name);
-  if (already) {
-    console.log(`  "${name}" is already in ${ignorePath}`);
-    process.exit(0);
+  const existingSet = new Set(existing.split('\n').map(l => l.trim()));
+  let appended = '';
+  const added = [], skipped = [];
+  for (const name of names) {
+    if (existingSet.has(name)) { skipped.push(name); continue; }
+    appended += `${name}\n`;
+    existingSet.add(name);
+    added.push(name);
   }
-  const prefix = existing && !existing.endsWith('\n') ? '\n' : '';
-  fs.appendFileSync(ignorePath, `${prefix}${name}\n`);
-  console.log(`  Added "${name}" to ${ignorePath}`);
+  if (appended) {
+    const prefix = existing && !existing.endsWith('\n') ? '\n' : '';
+    fs.appendFileSync(ignorePath, `${prefix}${appended}`);
+    console.log(`  Added to ${ignorePath}: ${added.map(n => `"${n}"`).join(', ')}`);
+  }
+  if (skipped.length) {
+    console.log(`  Already present: ${skipped.map(n => `"${n}"`).join(', ')}`);
+  }
   process.exit(0);
 }
 

@@ -112,11 +112,12 @@ Common paths by platform:
 # Launch the dashboard
 droidlane /path/to/project
 
-# Add a folder to .droidlane-ignore (hide from file explorer)
-droidlane ignore <folder-name> [project-path]
+# Add one or more names to .droidlane-ignore (hide from file explorer)
+droidlane ignore <name1> [name2 ...]
+droidlane ignore <name1> [name2 ...] --project /path/to/project
 ```
 
-The `ignore` sub-command appends the entry to `.droidlane-ignore` in the given project directory (defaults to the current working directory if `project-path` is omitted). It is a no-op if the entry already exists.
+The `ignore` sub-command appends entries to `.droidlane-ignore` in the project directory (defaults to the current working directory). Already-present entries are skipped silently.
 
 ---
 

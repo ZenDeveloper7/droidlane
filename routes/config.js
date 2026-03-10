@@ -39,11 +39,10 @@ module.exports = function configRoutes({ PROJECT_ROOT, ANDROID_STUDIO_JDK, safeR
   /**
    * GET /api/default-file
    * Returns the file to auto-open on dashboard startup.
-   * Priority: .droidlane-config.json → first release.gradle found.
-   * Response: { path: string | null }
+   * Priority: .droidlane-config.json pinned file only.
+   * Response: { path: string } | { path: null, prompt: true }
    */
   router.get('/api/default-file', (req, res) => {
-    // 1. Persisted preference
     const configPath = path.join(PROJECT_ROOT, '.droidlane-config.json');
     try {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -52,9 +51,8 @@ module.exports = function configRoutes({ PROJECT_ROOT, ANDROID_STUDIO_JDK, safeR
       }
     } catch {}
 
-    // 2. Search for release.gradle
-    const releasePath = findFile(PROJECT_ROOT, 'release.gradle', '', EXCLUDED_NAMES);
-    res.json({ path: releasePath || null });
+    // No pinned file — tell the frontend to prompt the user
+    res.json({ path: null, prompt: true });
   });
 
   /**

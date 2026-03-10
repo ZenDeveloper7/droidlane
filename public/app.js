@@ -72,7 +72,7 @@ initLogStripListeners();
  *   2. Show JDK info in the build panel badge
  *   3. Start the server log SSE stream
  *   4. Load the file tree and git branches in parallel
- *   5. Auto-open the default/pinned file
+ *   5. Auto-open the pinned file, or prompt user to pin one
  */
 async function boot() {
   try {
@@ -102,14 +102,16 @@ async function boot() {
   connectLogStream();
   await Promise.all([refreshTree(), loadBranches()]);
 
-  // Auto-open the default file (release.gradle if present, or user-pinned file)
+  // Auto-open the pinned default file, or prompt first-time users to pin one
   try {
     const res = await fetch('/api/default-file');
     if (res.ok) {
-      const { path: defaultPath } = await res.json();
+      const { path: defaultPath, prompt } = await res.json();
       if (defaultPath) {
         state.pinnedFile = defaultPath;
         loadFileIntoEditor(defaultPath);
+      } else if (prompt) {
+        showToast('Hover a file in the explorer and click ⊙ to pin it as your default');
       }
     }
   } catch {}

@@ -19,15 +19,16 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const state = {
-  currentFile: null,       // relative path of the file open in the editor
-  pinnedFile: null,        // file set as default (auto-open on startup)
-  isUnsaved: false,        // true when editor content differs from disk
-  isBuildRunning: false,   // true while a Gradle build SSE stream is active
-  currentBranch: null,     // name of the checked-out git branch
-  allBranches: [],         // full list returned by /api/git/branches
-  buildEvtSource: null,    // active EventSource for the build stream
-  editor: null,            // Monaco editor instance
-  expandedDirs: new Set(), // set of dir paths currently expanded in the tree
+  currentFile: null,        // relative path of the file open in the editor
+  pinnedFile: null,         // file set as default (auto-open on startup)
+  isUnsaved: false,         // true when editor content differs from disk
+  isBuildRunning: false,    // true while a Gradle build SSE stream is active
+  buildBothPending: false,  // true when assembleRelease should auto-start after bundleRelease
+  currentBranch: null,      // name of the checked-out git branch
+  allBranches: [],          // full list returned by /api/git/branches
+  buildEvtSource: null,     // active EventSource for the build stream
+  editor: null,             // Monaco editor instance
+  expandedDirs: new Set(),  // set of dir paths currently expanded in the tree
 };
 
 // ── Monaco init ───────────────────────────────────────────────────────────────
@@ -131,6 +132,8 @@ const buildResult       = $('build-result');
 const cancelBtn         = $('cancel-btn');
 const clearLogBtn       = $('clear-log-btn');
 const copyErrorsBtn     = $('copy-errors-btn');
+const buildExpandBtn    = $('build-expand-btn');
+const panelBuild        = $('panel-build');
 const clock             = $('clock');
 const refreshBtn        = $('refresh-btn');
 const toast             = $('toast');
@@ -449,7 +452,11 @@ function renderSearchResults(query) {
   treeContainer.appendChild(frag);
 }
 
-fileSearch.addEventListener('input', () => renderSearchResults(fileSearch.value));
+let fileSearchTimer;
+fileSearch.addEventListener('input', () => {
+  clearTimeout(fileSearchTimer);
+  fileSearchTimer = setTimeout(() => renderSearchResults(fileSearch.value), 200);
+});
 
 // ── Git Branches ──────────────────────────────────────────────────────────────
 
@@ -647,12 +654,39 @@ function setBuildRunning(running, taskBtn) {
  *
  * @param {string} task - Gradle task name (e.g. 'assembleRelease')
  */
+/** Show copied output files below the success banner */
+function renderOutputFiles(files, outputDir) {
+  let list = document.getElementById('build-file-list');
+  if (!list) {
+    list = document.createElement('div');
+    list.id = 'build-file-list';
+    buildResult.insertAdjacentElement('afterend', list);
+  }
+  list.innerHTML = '';
+  const heading = document.createElement('div');
+  heading.className = 'build-files-heading';
+  heading.textContent = `Output → ${outputDir}/`;
+  list.appendChild(heading);
+  for (const f of files) {
+    const row = document.createElement('div');
+    row.className = 'build-file-row';
+    row.textContent = f;
+    list.appendChild(row);
+  }
+}
+
 function startBuild(task) {
   if (state.isBuildRunning) return;
   buildLog.innerHTML = '';
   buildResult.className = '';
+  document.getElementById('build-file-list')?.remove();
 
-  const taskBtn = document.querySelector(`[data-task="${task}"]`);
+  // For "Build Both", highlight the both-button as running
+  const taskBtn = document.querySelector(
+    state.buildBothPending || task === 'bundleRelease'
+      ? '[data-task="both"]'
+      : `[data-task="${task}"]`
+  );
   setBuildRunning(true, taskBtn);
 
   const es = new EventSource(`/api/build?task=${encodeURIComponent(task)}`);
@@ -663,15 +697,25 @@ function startBuild(task) {
     if (data.type === 'done') {
       es.close(); state.buildEvtSource = null;
       setBuildRunning(false, null);
+      // Build Both: bundleRelease finished — chain assembleRelease
+      if (state.buildBothPending) {
+        state.buildBothPending = false;
+        appendBuildLog('─── bundleRelease done, starting assembleRelease ───', 'out');
+        startBuild('assembleRelease');
+        return;
+      }
       buildResult.textContent = '✓ BUILD SUCCESSFUL';
       buildResult.className = 'success';
       showToast('Build successful', 'success');
     } else if (data.type === 'fail') {
       es.close(); state.buildEvtSource = null;
+      state.buildBothPending = false;
       setBuildRunning(false, null);
       buildResult.textContent = '✗ BUILD FAILED';
       buildResult.className = 'fail';
       showToast('Build failed', 'error');
+    } else if (data.type === 'files') {
+      renderOutputFiles(data.files, data.outputDir);
     } else {
       appendBuildLog(data.line, data.type);
     }
@@ -679,6 +723,7 @@ function startBuild(task) {
 
   es.onerror = () => {
     es.close(); state.buildEvtSource = null;
+    state.buildBothPending = false;
     setBuildRunning(false, null);
     buildResult.textContent = '✗ CONNECTION LOST';
     buildResult.className = 'fail';
@@ -686,10 +731,19 @@ function startBuild(task) {
 }
 
 document.querySelectorAll('.build-btn').forEach(btn => {
-  btn.addEventListener('click', () => startBuild(btn.dataset.task));
+  btn.addEventListener('click', () => {
+    if (btn.dataset.task === 'both') {
+      state.buildBothPending = true;
+      startBuild('bundleRelease');
+    } else {
+      state.buildBothPending = false;
+      startBuild(btn.dataset.task);
+    }
+  });
 });
 
 cancelBtn.addEventListener('click', async () => {
+  state.buildBothPending = false;
   if (state.buildEvtSource) { state.buildEvtSource.close(); state.buildEvtSource = null; }
   try { await fetch('/api/build', { method: 'DELETE' }); } catch {}
   setBuildRunning(false, null);
@@ -701,6 +755,13 @@ cancelBtn.addEventListener('click', async () => {
 clearLogBtn.addEventListener('click', () => {
   buildLog.innerHTML = '';
   buildResult.className = '';
+  document.getElementById('build-file-list')?.remove();
+});
+
+buildExpandBtn.addEventListener('click', () => {
+  const expanded = panelBuild.classList.toggle('expanded');
+  buildExpandBtn.classList.toggle('active', expanded);
+  buildExpandBtn.title = expanded ? 'Collapse panel' : 'Expand panel';
 });
 
 copyErrorsBtn.addEventListener('click', () => {

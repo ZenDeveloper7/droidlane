@@ -234,6 +234,29 @@ function walkTree(dir, relBase) {
 }
 
 /**
+ * Recursively find all files with a given extension under a directory.
+ * Silent if the directory does not exist.
+ *
+ * @param {string} dir - absolute directory to walk
+ * @param {string} ext - extension including dot, e.g. '.aab'
+ * @returns {string[]} absolute file paths
+ */
+function findByExt(dir, ext) {
+  const results = [];
+  function walk(d) {
+    let entries;
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) walk(full);
+      else if (e.name.endsWith(ext)) results.push(full);
+    }
+  }
+  walk(dir);
+  return results;
+}
+
+/**
  * Resolves a client-supplied relative path to an absolute path,
  * rejecting any path that escapes PROJECT_ROOT (traversal guard).
  *
@@ -429,6 +452,29 @@ app.get('/api/build', (req, res) => {
   activeBuild.on('close', (code) => {
     activeBuild = null;
     if (code === 0) {
+      // Collect .aab and .apk artefacts and copy to droidlane-output/
+      const aabDir    = path.join(PROJECT_ROOT, 'app', 'build', 'outputs', 'bundle');
+      const apkDir    = path.join(PROJECT_ROOT, 'app', 'build', 'outputs', 'apk');
+      const artefacts = [...findByExt(aabDir, '.aab'), ...findByExt(apkDir, '.apk')];
+      const outputDir = path.join(PROJECT_ROOT, 'droidlane-output');
+
+      if (artefacts.length) {
+        try {
+          fs.mkdirSync(outputDir, { recursive: true });
+          const copied = [];
+          for (const src of artefacts) {
+            const dest = path.join(outputDir, path.basename(src));
+            fs.copyFileSync(src, dest);
+            copied.push(path.basename(src));
+          }
+          send({ type: 'files', files: copied, outputDir: 'droidlane-output' });
+          emitLog('success', `Copied ${copied.length} file(s) → droidlane-output/`,
+                  { action: 'build:files', task });
+        } catch (copyErr) {
+          send({ type: 'out', line: `[droidlane] copy warning: ${copyErr.message}` });
+        }
+      }
+
       emitLog('success', `Build succeeded: ${task}`, { action: 'build:done', task, code });
       send({ type: 'done', code: 0, line: 'BUILD SUCCESSFUL' });
     } else {

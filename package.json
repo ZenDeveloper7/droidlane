@@ -1,11 +1,11 @@
 {
-  "name": "droid-forge",
+  "name": "droidlane",
   "version": "1.0.0",
   "description": "A futuristic terminal-style Android project dashboard — file editor, build console, and git branch switcher in one local web app.",
   "main": "server.js",
   "type": "commonjs",
   "bin": {
-    "droid-forge": "bin/launch.js"
+    "droidlane": "bin/launch.js"
   },
   "files": [
     "bin/",

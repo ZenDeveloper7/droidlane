@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * bin/launch.js — CLI entry point for droid-forge
+ * bin/launch.js — CLI entry point for droidlane
  *
  * Usage:
- *   droid-forge /path/to/android/project
- *   npx droid-forge /path/to/android/project
+ *   droidlane /path/to/android/project
+ *   npx droidlane /path/to/android/project
  *
  * What it does:
  *   1. Validates the provided Android project path
@@ -26,7 +26,7 @@ const { execSync } = require('child_process');
 const projectRoot = process.argv[2];
 
 if (!projectRoot) {
-  console.error('\n  Usage: droid-forge /path/to/android/project\n');
+  console.error('\n  Usage: droidlane /path/to/android/project\n');
   process.exit(1);
 }
 
@@ -81,7 +81,7 @@ setTimeout(async () => {
     // Not fatal — user can open manually
   }
 
-  console.log(`\n  ◈ DROID FORGE`);
+  console.log(`\n  ◈ DROIDLANE`);
   console.log(`  Project : ${resolved}`);
   console.log(`  Local   : ${localURL}`);
   console.log(`  Tailnet : ${tailURL ?? '(tailscale not detected)'}`);

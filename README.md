@@ -1,8 +1,8 @@
-# ◈ Droid Forge
+# ◈ DroidLane
 
 A futuristic terminal-style dashboard for Android projects — file editor, Gradle build console, and git branch switcher in one local web app. No cloud, no accounts, no build step.
 
-![Dashboard aesthetic: dark matter terminal with cyan accents](https://raw.githubusercontent.com/ZenDeveloper7/droid-forge/main/docs/preview.png)
+![Dashboard aesthetic: dark matter terminal with cyan accents](https://raw.githubusercontent.com/ZenDeveloper7/droidlane/main/docs/preview.png)
 
 ---
 
@@ -10,26 +10,26 @@ A futuristic terminal-style dashboard for Android projects — file editor, Grad
 
 **Via npm** *(recommended)*
 ```bash
-npm install -g droid-forge
-droid-forge /path/to/your/android/project
+npm install -g droidlane
+droidlane /path/to/your/android/project
 ```
 
 **Without installing** *(npx, runs latest version every time)*
 ```bash
-npx droid-forge /path/to/your/android/project
+npx droidlane /path/to/your/android/project
 ```
 
 **Directly from GitHub** *(no npm account needed)*
 ```bash
-npm install -g github:ZenDeveloper7/droid-forge
-droid-forge /path/to/your/android/project
+npm install -g github:ZenDeveloper7/droidlane
+droidlane /path/to/your/android/project
 ```
 
 **From a release tarball** *(offline/air-gapped)*
 ```bash
-# Download droid-forge-x.x.x.tgz from GitHub Releases, then:
-npm install -g ./droid-forge-1.0.0.tgz
-droid-forge /path/to/your/android/project
+# Download droidlane-x.x.x.tgz from GitHub Releases, then:
+npm install -g ./droidlane-1.0.0.tgz
+droidlane /path/to/your/android/project
 ```
 
 ---
@@ -50,7 +50,7 @@ droid-forge /path/to/your/android/project
 ## Usage
 
 ```
-droid-forge <project-path>
+droidlane <project-path>
 
   project-path   Absolute or relative path to the root of an Android project
                  (the directory that contains gradlew)
@@ -59,7 +59,7 @@ droid-forge <project-path>
 On launch you'll see:
 
 ```
-  ◈ DROID FORGE
+  ◈ DROIDLANE
   Project : /home/you/projects/MyApp
   Local   : http://localhost:3131
   Tailnet : http://100.x.x.x:3131
@@ -88,7 +88,7 @@ The explorer hides directories that are either generated or too large to be usef
 ## Architecture
 
 ```
-droid-forge/
+droidlane/
 ├── bin/
 │   └── launch.js      # CLI entry point — validates path, detects Tailscale IP, opens browser
 ├── public/
@@ -116,7 +116,7 @@ droid-forge/
 
 ## Releases
 
-Latest release and all tarballs: [github.com/ZenDeveloper7/droid-forge/releases](https://github.com/ZenDeveloper7/droid-forge/releases)
+Latest release and all tarballs: [github.com/ZenDeveloper7/droidlane/releases](https://github.com/ZenDeveloper7/droidlane/releases)
 
 To publish a new version:
 
@@ -124,7 +124,7 @@ To publish a new version:
 # bump version in package.json, then:
 npm pack
 git tag v1.x.x && git push origin v1.x.x
-gh release create v1.x.x droid-forge-1.x.x.tgz --title "v1.x.x" --generate-notes
+gh release create v1.x.x droidlane-1.x.x.tgz --title "v1.x.x" --generate-notes
 npm publish   # requires npm login
 ```
 
@@ -133,8 +133,8 @@ npm publish   # requires npm login
 ## Local development
 
 ```bash
-git clone https://github.com/ZenDeveloper7/droid-forge
-cd droid-forge
+git clone https://github.com/ZenDeveloper7/droidlane
+cd droidlane
 npm install
 node bin/launch.js /path/to/android/project
 ```

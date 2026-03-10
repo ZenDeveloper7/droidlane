@@ -1,5 +1,5 @@
 /**
- * server.js — Express backend for droid-forge
+ * server.js — Express backend for droidlane
  *
  * Responsibilities:
  *   - Serves the static frontend (public/) and Monaco Editor (node_modules)
@@ -30,7 +30,7 @@ const PROJECT_ROOT = process.env.ANDROID_PROJECT_ROOT;
 const PORT = 3131;
 
 if (!PROJECT_ROOT) {
-  console.error('ANDROID_PROJECT_ROOT not set. Use: droid-forge /path/to/project');
+  console.error('ANDROID_PROJECT_ROOT not set. Use: droidlane /path/to/project');
   process.exit(1);
 }
 

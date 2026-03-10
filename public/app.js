@@ -1,5 +1,5 @@
 /**
- * public/app.js — Droid Forge frontend
+ * public/app.js — DroidLane frontend
  *
  * Pure vanilla JS, no framework, no bundler. Runs as an ES module in the browser.
  *
@@ -40,7 +40,7 @@ require.config({ paths: { vs: '/monaco/vs' } });
 
 require(['vs/editor/editor.main'], () => {
   // Custom theme that matches the dashboard palette
-  monaco.editor.defineTheme('droid-forge', {
+  monaco.editor.defineTheme('droidlane', {
     base: 'vs-dark',
     inherit: true,
     rules: [
@@ -69,7 +69,7 @@ require(['vs/editor/editor.main'], () => {
   });
 
   state.editor = monaco.editor.create(document.getElementById('editor-mount'), {
-    theme: 'droid-forge',
+    theme: 'droidlane',
     automaticLayout: true,       // reflows when the container resizes
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -734,7 +734,7 @@ async function boot() {
     const res = await fetch('/api/project');
     if (res.ok) {
       const { name } = await res.json();
-      document.title = `${name} — DROID FORGE`;
+      document.title = `${name} — DROIDLANE`;
     }
   } catch {}
 

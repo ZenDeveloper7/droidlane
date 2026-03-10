@@ -72,6 +72,7 @@ module.exports = function buildRoutes({ PROJECT_ROOT, ANDROID_STUDIO_JDK, findBy
       ...(ANDROID_STUDIO_JDK ? { JAVA_HOME: ANDROID_STUDIO_JDK } : {}),
     };
 
+    const buildStartTime = Date.now();
     activeBuild = spawn(cmd, [task], { cwd: PROJECT_ROOT, env: buildEnv });
 
     const streamLines = (type) => (data) => {
@@ -86,10 +87,12 @@ module.exports = function buildRoutes({ PROJECT_ROOT, ANDROID_STUDIO_JDK, findBy
     activeBuild.on('close', (code) => {
       activeBuild = null;
       if (code === 0) {
-        // Collect .aab and .apk artefacts and copy to droidlane-output/
+        // Collect only artefacts produced during this build (mtime >= buildStartTime)
+        // so that re-running a single flavour doesn't copy stale files from other flavours.
         const aabDir    = path.join(PROJECT_ROOT, 'app', 'build', 'outputs', 'bundle');
         const apkDir    = path.join(PROJECT_ROOT, 'app', 'build', 'outputs', 'apk');
-        const artefacts = [...findByExt(aabDir, '.aab'), ...findByExt(apkDir, '.apk')];
+        const artefacts = [...findByExt(aabDir, '.aab'), ...findByExt(apkDir, '.apk')]
+          .filter(f => { try { return fs.statSync(f).mtimeMs >= buildStartTime; } catch { return false; } });
         const outputDir = path.join(PROJECT_ROOT, 'droidlane-output');
 
         if (artefacts.length) {

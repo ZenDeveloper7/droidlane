@@ -77,11 +77,26 @@ On launch you'll see:
 
 ---
 
-## What gets excluded from the file tree
+## Excluding folders from the file tree
 
-The explorer hides directories that are either generated or too large to be useful:
+By default droidlane shows **all** directories. To hide folders, create a `.droidlane-ignore` file in your project root:
 
-`build/` · `.gradle/` · `.git/` · `.idea/` · `node_modules/` · `captures/` · `amplify/` · `.vscode/` · `mobilertc/` · `app/src/`
+```
+# .droidlane-ignore
+
+# Bare name → hides any dir with that name anywhere in the tree
+build
+.gradle
+node_modules
+.git
+.idea
+
+# Path with slash → hides that exact relative path and everything under it
+app/src
+```
+
+- Lines starting with `#` are comments
+- Delete the file (or leave it empty) to show everything
 
 ---
 

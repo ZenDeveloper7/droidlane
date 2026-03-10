@@ -93,19 +93,34 @@ let activeBuild = null;
 // ── File tree helpers ─────────────────────────────────────────────────────────
 
 /**
- * Directory names to always exclude from the file tree.
- * Keeps the explorer clean and avoids walking large generated/vendor dirs.
+ * Load exclusions from .droidlane-ignore in the project root.
+ *
+ * File format (one entry per line):
+ *   - Lines starting with # are comments
+ *   - A bare name (e.g. "build") matches any directory with that name anywhere in the tree
+ *   - A path with a slash (e.g. "app/src") matches that exact relative path or anything under it
+ *
+ * If the file doesn't exist, no directories are excluded (show everything).
  */
-const EXCLUDED_DIRS = new Set([
-  'build', '.gradle', 'node_modules', '.git', '.idea',
-  'captures', 'amplify', '.vscode', 'mobilertc',
-]);
+function loadIgnore() {
+  const ignorePath = path.join(PROJECT_ROOT, '.droidlane-ignore');
+  const names = new Set();
+  const paths = [];
+  try {
+    const lines = fs.readFileSync(ignorePath, 'utf8').split('\n');
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      if (line.includes('/')) paths.push(line.replace(/\/$/, ''));
+      else names.add(line);
+    }
+  } catch {
+    // No ignore file — show all dirs
+  }
+  return { names, paths };
+}
 
-/**
- * Relative path prefixes to exclude (matched as prefix or exact).
- * app/src is excluded because it contains generated R files, not hand-edited code.
- */
-const EXCLUDED_PATHS = ['app/src'];
+const { names: EXCLUDED_NAMES, paths: EXCLUDED_PATHS } = loadIgnore();
 
 /**
  * Returns true if a tree entry should be hidden from the explorer.
@@ -115,9 +130,9 @@ const EXCLUDED_PATHS = ['app/src'];
  * @param {boolean} isDir  - whether the entry is a directory
  */
 function shouldExclude(relPath, name, isDir) {
-  if (isDir && EXCLUDED_DIRS.has(name)) return true;
+  if (isDir && EXCLUDED_NAMES.has(name)) return true;
   for (const ex of EXCLUDED_PATHS) {
-    if (relPath === ex || relPath.startsWith(ex + path.sep)) return true;
+    if (relPath === ex || relPath.startsWith(ex + '/') || relPath.startsWith(ex + path.sep)) return true;
   }
   return false;
 }

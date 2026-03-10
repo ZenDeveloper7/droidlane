@@ -527,7 +527,8 @@
       color: var(--muted);
       text-transform: uppercase;
     }
-    #clear-log-btn {
+    #build-log-header-actions { display: flex; gap: 8px; align-items: center; }
+    #clear-log-btn, #copy-errors-btn {
       background: transparent;
       border: none;
       color: var(--muted);
@@ -540,6 +541,28 @@
       text-transform: uppercase;
     }
     #clear-log-btn:hover { color: var(--text); }
+    #copy-errors-btn:hover { color: var(--error); }
+
+    /* Copy icon on individual log lines */
+    .log-line { position: relative; }
+    .log-copy-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+      opacity: 0;
+      padding: 1px 3px;
+      transition: opacity 100ms ease-out, color 100ms ease-out;
+      font-family: var(--font-ui);
+      line-height: 1;
+    }
+    .log-line:hover .log-copy-btn { opacity: 1; }
+    .log-line:hover .log-copy-btn:hover { color: var(--accent); }
 
     #build-log {
       flex: 1;
@@ -819,7 +842,10 @@
           </div>
           <div id="build-log-header">
             <span>Output</span>
-            <button id="clear-log-btn">Clear</button>
+            <div id="build-log-header-actions">
+              <button id="copy-errors-btn" title="Copy all error lines">Copy Errors</button>
+              <button id="clear-log-btn">Clear</button>
+            </div>
           </div>
           <div id="build-log"></div>
           <div id="build-result"></div>

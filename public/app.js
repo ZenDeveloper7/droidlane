@@ -130,6 +130,7 @@ const buildLog          = $('build-log');
 const buildResult       = $('build-result');
 const cancelBtn         = $('cancel-btn');
 const clearLogBtn       = $('clear-log-btn');
+const copyErrorsBtn     = $('copy-errors-btn');
 const clock             = $('clock');
 const refreshBtn        = $('refresh-btn');
 const toast             = $('toast');
@@ -593,6 +594,17 @@ function appendBuildLog(line, type) {
   const el = document.createElement('div');
   el.className = `log-line ${classifyLine(line, type)}`;
   el.textContent = line;
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'log-copy-btn';
+  copyBtn.title = 'Copy line';
+  copyBtn.textContent = '⎘';
+  copyBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(line).then(() => showToast('Copied', 'success'));
+  });
+  el.appendChild(copyBtn);
+
   buildLog.appendChild(el);
   buildLog.scrollTop = buildLog.scrollHeight;
 }
@@ -689,6 +701,16 @@ cancelBtn.addEventListener('click', async () => {
 clearLogBtn.addEventListener('click', () => {
   buildLog.innerHTML = '';
   buildResult.className = '';
+});
+
+copyErrorsBtn.addEventListener('click', () => {
+  const errors = [...buildLog.querySelectorAll('.log-line.err')]
+    .map(el => el.textContent)
+    .join('\n');
+  if (!errors) { showToast('No errors to copy', ''); return; }
+  navigator.clipboard.writeText(errors).then(() =>
+    showToast(`Copied ${errors.split('\n').length} error line(s)`, 'success')
+  );
 });
 
 // ── Server Log Strip ──────────────────────────────────────────────────────────
